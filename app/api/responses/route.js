@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server';
+export async function GET(){try{const url=process.env.GOOGLE_SCRIPT_URL;if(!url)return NextResponse.json({error:'서버에 GOOGLE_SCRIPT_URL이 설정되지 않았습니다.'},{status:503});const response=await fetch(url+'?secret='+encodeURIComponent(process.env.SHEET_API_SECRET||''),{cache:'no-store'});const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'조회 실패');return NextResponse.json({rows:data.rows||[]},{headers:{'Cache-Control':'no-store'}})}catch(e){return NextResponse.json({error:e.message},{status:500})}}
