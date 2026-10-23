@@ -1,2 +1,28 @@
-import {NextResponse} from 'next/server';
-export async function POST(request){try{const {name,date,time,place}=await request.json();if(![name,date,time,place].every(v=>typeof v==='string'&&v.trim()))return NextResponse.json({error:'모든 항목을 입력해 주세요.'},{status:400});if(name.length>40||date.length>10||time.length>120||place.length>300||!/^\d{4}-\d{2}-\d{2}$/.test(date))return NextResponse.json({error:'입력 형식을 확인해 주세요.'},{status:400});const url=process.env.GOOGLE_SCRIPT_URL;if(!url)return NextResponse.json({error:'서버에 GOOGLE_SCRIPT_URL이 설정되지 않았습니다.'},{status:503});const response=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({name,date,time,place,secret:process.env.SHEET_API_SECRET}),cache:'no-store',redirect:'follow'});const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'스프레드시트 저장 실패');return NextResponse.json({ok:true})}catch(e){return NextResponse.json({error:e.message},{status:500})}}
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+export async function POST(request) {
+  try {
+    const { name, date, time, place } = await request.json();
+    if (![name, date, time, place].every(v => typeof v === 'string' && v.trim())) {
+      return NextResponse.json({ error: '모든 항목을 입력해 주세요.' }, { status: 400 });
+    }
+    if (name.length > 40 || time.length > 120 || place.length > 300 ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+        Number.isNaN(Date.parse(date)) || new Date(date).toISOString().slice(0,10) !== date) {
+      return NextResponse.json({ error: '입력 형식을 확인해 주세요.' }, { status: 400 });
+    }
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) return NextResponse.json({ error: 'Supabase 연결 환경변수가 설정되지 않았습니다.' }, { status: 503 });
+    const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { error } = await db.from('meetup_responses').insert({
+      name: name.trim(), date, time: time.trim(), place: place.trim()
+    });
+    if (error) throw error;
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('Submission error:', error);
+    return NextResponse.json({ error: '저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' }, { status: 500 });
+  }
+}

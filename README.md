@@ -1,29 +1,23 @@
-# 모임 일정 신청폼
+# 모임 일정 신청폼 — Supabase 버전
 
-Vercel에 배포하는 Next.js 웹사이트. 응답은 Google Sheets에 저장되고, 신청 현황도 시트에서 읽어 옵니다.
+Vercel(Next.js) + Supabase. 신청 시 `meetup_responses` 테이블에 저장하고, 화면에 최근 200건을 표시합니다.
 
-## 1. Google Sheets 연결
-1. 새 Google 스프레드시트를 만듭니다.
-2. 주소 `https://docs.google.com/spreadsheets/d/스프레드시트_ID/edit`에서 ID를 복사합니다.
-3. **확장 프로그램 → Apps Script**를 열고 `google-apps-script.gs` 파일의 내용을 붙여 넣습니다.
-4. `SPREADSHEET_ID`를 실제 ID로 바꿉니다.
-5. `API_SECRET`를 길고 무작위인 비밀 문자열로 바꿉니다. Vercel에도 똑같은 값을 넣어야 합니다.
-6. **배포 → 새 배포 → 유형: 웹 앱**을 선택합니다. 실행 사용자: **나**, 액세스 권한: **모든 사용자**로 설정하고 배포합니다. 필요한 Google 권한을 승인합니다.
-7. 생성된 웹 앱 URL (`.../exec`)을 복사합니다. 이 URL은 공개될 수 있지만, 스크립트는 비밀 문자열로 요청을 확인합니다.
+## 1. Supabase 데이터베이스 만들기
+1. https://supabase.com/dashboard 에 GitHub 계정으로 로그인합니다.
+2. **New project**를 눌러 프로젝트 이름, 데이터베이스 비밀번호, Region을 설정하고 생성합니다. GitHub로 로그인한 것과 DB 프로젝트 생성은 별개입니다.
+3. 왼쪽 **SQL Editor → New query**에서 `supabase-setup.sql` 파일 내용을 붙여넣고 **Run**을 누릅니다.
+4. **Project Settings → API** (화면에 따라 **Connect → API Keys** 또는 **Settings → API Keys**)에서 Project URL과 `service_role` **secret key**를 확인합니다. 새 `sb_secret_...` 키가 제공되는 경우 해당 서버용 secret key를 사용할 수도 있습니다.
 
-## 2. Vercel 배포
-1. 이 프로젝트 폴더를 GitHub 저장소에 올립니다.
-2. Vercel에서 **Add New → Project**로 저장소를 가져옵니다. Framework Preset은 Next.js입니다.
-3. Environment Variables에 다음을 설정합니다.
-   - `GOOGLE_SCRIPT_URL`: 위에서 복사한 `/exec` URL
-   - `SHEET_API_SECRET`: Apps Script의 `API_SECRET`와 동일한 값
-4. Deploy를 누릅니다. 환경 변수를 바꾼 경우 다시 배포합니다.
+## 2. Vercel 연결
+1. GitHub 저장소의 기존 Google Sheets 버전 파일을 이 폴더의 파일들로 교체합니다. 특히 `app/api/submit/route.js`, `app/api/responses/route.js`, `package.json`이 변경되어야 합니다.
+2. Vercel 프로젝트 → **Settings → Environment Variables**에서 다음 두 항목을 추가합니다.
+   - `SUPABASE_URL` = Supabase Project URL
+   - `SUPABASE_SERVICE_ROLE_KEY` = Supabase 서버 전용 secret/service_role 키
+3. **Deployments → Redeploy**를 실행합니다. 기존 `GOOGLE_SCRIPT_URL`과 `SHEET_API_SECRET`은 더 이상 사용하지 않습니다.
+4. 배포된 웹사이트에서 시험 신청을 해보고 Supabase **Table Editor → meetup_responses**에서 새 행이 생성되었는지 확인합니다.
 
-## 로컬 실행
-`npm install` 후 `.env.example`을 `.env.local`로 복사해 값을 설정하고 `npm run dev`를 실행합니다.
-
-## 유의사항
-- 신청 현황은 웹사이트 방문자 누구나 볼 수 있습니다. 민감한 정보를 입력하지 않도록 안내하세요.
-- 누구나 제출할 수 있는 공개 폼이므로 스팸 방지 기능은 포함되어 있지 않습니다.
-- Apps Script에서 코드를 수정한 경우 **배포 관리 → 수정 → 새 버전**으로 재배포해야 변경 사항이 반영됩니다.
-- 이름, 날짜, 시간, 장소는 각각 하나의 입력 필드입니다. 날짜 복수 선택 기능은 포함하지 않았습니다.
+## 주의
+- **서비스 역할 키/secret key를 GitHub, 클라이언트 코드, 채팅, 스크린샷에 공개하지 마세요.** 오직 Vercel 서버 환경변수에 넣으세요.
+- 웹사이트 신청 현황은 방문자에게 공개됩니다. 이름과 일정 공유에 동의한 사람만 입력하도록 안내하세요.
+- 공개 제출 API에는 인증/봇 방지가 없으므로, 널리 공개할 경우 CAPTCHA 및 rate limit을 추가해야 합니다.
+- 데이터는 기존 Google Sheets에서 자동 이전되지 않습니다.
